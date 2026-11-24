@@ -1,0 +1,102 @@
+# ============================================================
+# Degradation-Aware Image Enhancement — .gitignore
+# ============================================================
+
+# ------ Python -----------------------------------------------
+__pycache__/
+*.py[cod]
+*.pyd
+*.pyo
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.whl
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env/
+ENV/
+
+# Type checking / linting
+.mypy_cache/
+.dmypy.json
+.ruff_cache/
+.pytype/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# ------ Node / Frontend --------------------------------------
+node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/build/
+*.local
+
+# ------ Data & Large Binary Files ----------------------------
+# Never commit training data or model weights to git
+data/
+checkpoints/
+outputs/
+results/
+*.pth
+*.pt
+*.onnx
+*.h5
+*.pkl
+*.bin
+
+# ------ Environment & Secrets --------------------------------
+.env
+.env.*
+!.env.example
+*.db
+*.sqlite
+*.sqlite3
+
+# ------ IDE / Editor -----------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ------ OS ---------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ------ Logs -------------------------------------------------
+logs/
+*.log
+*.log.*
+
+# ------ Uploads (runtime generated) -------------------------
+backend/uploads/
+backend/enhanced/
+
+# ------ Misc -------------------------------------------------
+*.bak
+*.tmp
+*.orig
+scratch/
