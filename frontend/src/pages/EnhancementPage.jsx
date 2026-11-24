@@ -122,7 +122,7 @@ export default function EnhancementPage() {
     try {
       const res = await enhanceImage(uploadedName);
       const enhData = {
-        url: `/images/${res.data.enhanced_filename}`,
+        url: res.data.enhanced_url,
         filename: res.data.enhanced_filename,
         dimensions: res.data.dimensions,
         strategy: res.data.strategy,
@@ -255,6 +255,17 @@ export default function EnhancementPage() {
                     )}
                   </div>
 
+                  {analysis.detected_degradations?.length > 0 && (
+                    <div>
+                      <p style={{ fontSize:'.78rem', color:'var(--text-secondary)', marginBottom:'.5rem', fontWeight:600 }}>DETECTED DEGRADATIONS</p>
+                      <div style={{ display:'flex', gap:'.5rem', flexWrap:'wrap' }}>
+                        {analysis.detected_degradations.map(type => (
+                          <span className="badge badge-blue" key={type}>{type.replace(/_/g, ' ')}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {analysis.all_scores && (
                     <div>
                       <p style={{ fontSize:'.78rem', color:'var(--text-secondary)', marginBottom:'.5rem', fontWeight:600 }}>SCORE BREAKDOWN</p>
@@ -285,14 +296,24 @@ export default function EnhancementPage() {
             <p style={{ color:'var(--text-secondary)', fontSize:'.875rem' }}>
               Run the adaptive enhancement pipeline. The strategy is chosen based on the detected degradation type.
             </p>
-            <button
-              className="btn btn-primary"
-              onClick={runEnhance}
-              disabled={!uploadedName || enhancing || uploadLoading}
-              style={{ width:'100%', justifyContent:'center', padding:'.85rem' }}
-            >
-              {enhancing ? <><RefreshCw size={16} style={{ animation:'daie-spin .8s linear infinite' }} /> Enhancing…</> : <><Sparkles size={16} /> Enhance Image</>}
-            </button>
+            <div style={{ display:'flex', gap:'.65rem' }}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => runAnalyze(uploadedName)}
+                disabled={!uploadedName || analyzing || uploadLoading || enhancing}
+                style={{ flex:1, justifyContent:'center', padding:'.85rem' }}
+              >
+                {analyzing ? <><RefreshCw size={16} style={{ animation:'daie-spin .8s linear infinite' }} /> Analysing…</> : <><Info size={16} /> Analyse</>}
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={runEnhance}
+                disabled={!uploadedName || enhancing || analyzing || uploadLoading}
+                style={{ flex:1, justifyContent:'center', padding:'.85rem' }}
+              >
+                {enhancing ? <><RefreshCw size={16} style={{ animation:'daie-spin .8s linear infinite' }} /> Enhancing…</> : <><Sparkles size={16} /> Enhance Image</>}
+              </button>
+            </div>
             {!uploadedName && (
               <p style={{ color:'var(--text-muted)', fontSize:'.8rem', textAlign:'center' }}>↑ Upload an image first</p>
             )}

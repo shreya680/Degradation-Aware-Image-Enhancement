@@ -104,24 +104,6 @@ class AdaptiveEnhancementController:
         image_path: str | Path,
         analysis: dict[str, Any],
     ) -> dict[str, Any]:
-        """
-        Apply the appropriate enhancement strategy based on degradation analysis.
-
-        Args:
-            image_path: Path to the original image.
-            analysis:   Dict from DegradationAnalyzer.analyze() containing
-                        degradation_type, severity_level, etc.
-
-        Returns:
-            {
-                "enhanced_image": PIL Image,
-                "degradation_type": str,
-                "severity_level": str,
-                "strategy_chosen": str,
-                "model_used": str,
-                "processing_time_ms": float,
-            }
-        """
         image_path = Path(image_path)
         if not image_path.exists():
             raise FileNotFoundError(f"Image not found: {image_path}")
@@ -129,26 +111,72 @@ class AdaptiveEnhancementController:
         pil_image = Image.open(image_path).convert("RGB")
         degradation_type = analysis.get("degradation_type", "low_light")
         severity_level = analysis.get("severity_level", "Medium")
+        detected = analysis.get("detected_degradations", [degradation_type])
+        if not isinstance(detected, (list, tuple, set)) or not detected:
+            detected = [degradation_type]
+        valid_types = {"low_light", "noise", "blur", "compression"}
+        detected = [d for d in detected if d in valid_types]
+        if not detected:
+            detected = [degradation_type]
+
+        enhancement_order = [
+            "low_light",
+            "noise",
+            "compression",
+            "blur",
+        ]
 
         t0 = time.perf_counter()
+        enhanced_image = pil_image
+        applied_strategies = []
+        models_used = []
+        applied_degradations = set()
 
-        if degradation_type == "low_light":
-            enhanced_image, strategy_chosen = self._apply_zero_dce(pil_image)
-            model_used = "zero_dce"
-        elif degradation_type == "noise":
-            enhanced_image, strategy_chosen = self._apply_noise_reduction(pil_image, severity_level)
-            model_used = "cv2.GaussianBlur"
-        elif degradation_type == "blur":
-            enhanced_image, strategy_chosen = self._apply_sharpening(pil_image, severity_level)
-            model_used = "unsharp_mask"
-        elif degradation_type == "compression":
-            enhanced_image, strategy_chosen = self._apply_artifact_removal(pil_image, severity_level)
-            model_used = "cv2.bilateralFilter"
-        else:
-            # Default fallback: treat as low_light
-            logger.warning(f"Unknown degradation type '{degradation_type}', defaulting to Zero-DCE.")
-            enhanced_image, strategy_chosen = self._apply_zero_dce(pil_image)
-            model_used = "zero_dce"
+        for degradation in enhancement_order:
+            if degradation not in detected:
+                continue
+
+            if degradation == "low_light":
+                enhanced_image, strategy = self._apply_zero_dce(enhanced_image)
+                enhanced_array = np.array(enhanced_image.convert("RGB"))
+                if float(np.mean(enhanced_array)) < 75:
+                    lab = cv2.cvtColor(enhanced_array, cv2.COLOR_RGB2LAB)
+                    l_channel, a_channel, b_channel = cv2.split(lab)
+                    clahe = cv2.createCLAHE(
+                        clipLimit=1.5,
+                        tileGridSize=(8, 8)
+                    )
+                    enhanced_l = clahe.apply(l_channel)
+                    enhanced_array = cv2.cvtColor(
+                        cv2.merge((enhanced_l, a_channel, b_channel)),
+                        cv2.COLOR_LAB2RGB
+                    )
+                    enhanced_image = Image.fromarray(enhanced_array, "RGB")
+                    strategy = "numpy_curve+clahe_fallback"
+                model = "numpy_curve+clahe" if not self.zero_dce.weights_loaded else "zero_dce"
+            elif degradation == "noise":
+                enhanced_image, strategy = self._apply_noise_reduction(
+                    enhanced_image,
+                    severity_level,
+                )
+                model = "cv2.GaussianBlur"
+            elif degradation == "compression":
+                enhanced_image, strategy = self._apply_artifact_removal(
+                    enhanced_image,
+                    severity_level,
+                )
+                model = "cv2.bilateralFilter"
+            else:
+                blur_severity = "Low" if "noise" in applied_degradations else severity_level
+                enhanced_image, strategy = self._apply_sharpening(
+                    enhanced_image,
+                    blur_severity,
+                )
+                model = "unsharp_mask"
+
+            applied_strategies.append(strategy)
+            models_used.append(model)
+            applied_degradations.add(degradation)
 
         t1 = time.perf_counter()
         processing_time_ms = round((t1 - t0) * 1000, 2)
@@ -157,9 +185,10 @@ class AdaptiveEnhancementController:
             "enhanced_image": enhanced_image,
             "degradation_type": degradation_type,
             "severity_level": severity_level,
-            "strategy_chosen": strategy_chosen,
-            "model_used": model_used,
+            "strategy_chosen": " + ".join(applied_strategies) or "none",
+            "model_used": " + ".join(models_used) or "none",
             "processing_time_ms": processing_time_ms,
+            "detected_degradations": list(detected),
         }
 
 

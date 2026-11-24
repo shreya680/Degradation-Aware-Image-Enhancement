@@ -28,9 +28,19 @@ export default function Dashboard() {
       try {
         const [h, m, hist] = await Promise.allSettled([getHealth(), getModelsStatus(), getHistory()]);
         if (!alive) return;
-        if (h.status      === 'fulfilled') setHealth(h.value.data);
-        if (m.status      === 'fulfilled') setModels(m.value.data);
-        if (hist.status   === 'fulfilled') setHistory(hist.value.data?.history ?? hist.value.data ?? []);
+        if (h.status === 'fulfilled') setHealth(h.value.data);
+        if (m.status === 'fulfilled') setModels(m.value.data);
+
+        if (hist.status === 'fulfilled') {
+          const data = hist.value.data;
+          const historyData =
+            data?.sessions ??
+            data?.history ??
+            data?.items ??
+            data?.records ??
+            [];
+          setHistory(Array.isArray(historyData) ? historyData : []);
+        }
       } catch (e) {
         if (alive) setError(e.message);
       } finally {

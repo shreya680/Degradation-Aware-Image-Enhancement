@@ -294,6 +294,20 @@ async def enhance_image(
     _, enhanced_url = _save_pil_to_enhanced(enhanced_pil, stem)
     enh_name = Path(enhanced_url).name
 
+    # Save enhancement session to history
+    try:
+        session_data = {
+            "filename": upload_filename,
+            "degradation_type": analysis.get("degradation_type"),
+            "severity": analysis.get("severity_level"),
+            "strategy": enhancement_result.get("strategy_chosen"),
+            "processing_time_ms": enhancement_result.get("processing_time_ms"),
+        }
+        session_id = _get_history().save_session(session_data)
+        logger.info(f"Enhancement session saved: {session_id}")
+    except Exception as e:
+        logger.error(f"Failed to save enhancement history: {e}")
+
     return {
         "enhanced_url": enhanced_url,
         "enhanced_filename": enh_name,

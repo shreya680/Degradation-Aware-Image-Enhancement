@@ -206,8 +206,29 @@ class DegradationAnalyzer:
             "compression": comp_conf,
         }
 
-        # Dominant type = highest score
-        dominant_type = max(all_scores, key=lambda k: all_scores[k])
+        # Detect multiple significant degradations
+        degradation_threshold = 0.50
+        detected_degradations = [
+            name for name, score in all_scores.items()
+            if score >= degradation_threshold
+        ]
+        # Ensure at least one degradation is identified
+        if not detected_degradations:
+            detected_degradations = [
+                max(all_scores, key=lambda k: all_scores[k])
+            ]
+
+        # Prioritize low-light for very dark images
+        mean_brightness = float(np.mean(gray))
+        if mean_brightness < 80 and "low_light" not in detected_degradations:
+            detected_degradations.append("low_light")
+        if mean_brightness < 80:
+            dominant_type = "low_light"
+        else:
+            dominant_type = max(
+                detected_degradations,
+                key=lambda k: all_scores[k]
+            )
         dominant_score = all_scores[dominant_type]
         dominant_conf = all_confs[dominant_type]
 
@@ -216,7 +237,6 @@ class DegradationAnalyzer:
         sev_level = _severity_level(dominant_score, low_light=is_ll)
 
         # Build human-readable details
-        mean_brightness = float(np.mean(gray))
         lap_var = float(np.var(cv2.Laplacian(gray.astype(np.float32), cv2.CV_32F)))
         details = {
             "mean_brightness": round(mean_brightness, 2),
@@ -230,6 +250,7 @@ class DegradationAnalyzer:
 
         return {
             "degradation_type": dominant_type,
+            "detected_degradations": detected_degradations,
             "severity_score": round(dominant_score, 4),
             "severity_level": sev_level,
             "confidence": round(dominant_conf, 4),
